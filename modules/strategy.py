@@ -163,6 +163,18 @@ class C79Strategy:
             if current_stoch_k > self.stoch_overbought and current_stoch_k < current_stoch_d:
                 sell_conditions += 1
                 sell_details.append("STOCH_BEARISH")
+
+            # Optional debug output for signal evaluation
+            if self.debug_signals:
+                try:
+                    print(
+                        f"[DEBUG] BUY {buy_conditions}/5 {buy_details} | "
+                        f"SELL {sell_conditions}/5 {sell_details} | "
+                        f"price={current_price:.2f} RSI={current_rsi:.1f} ADX={current_adx:.1f}"
+                    )
+                except Exception:
+                    # Never let debug printing break the strategy
+                    pass
             
             # Generate signal if conditions met
             if buy_conditions >= self.min_conditions:
