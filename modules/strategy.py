@@ -14,7 +14,10 @@ class C79Strategy:
     def __init__(self, config):
         self.config = config
         self.strategy_config = config['STRATEGY']
-        
+
+        # Optional debug flag, default False if not in config
+        self.debug_signals = self.strategy_config.get('debug_signals', False)
+
         # Load parameters
         self.min_conditions = self.strategy_config.get('min_conditions_required', 3)
         
