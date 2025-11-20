@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """
-Telegram Command Handler - C79 Sniper Bot (v3.0.0)
-Handles Telegram bot commands for XAUUSD trading bot monitoring
-FINAL FIX: Daily profit + percentage calculations corrected (NET profit)
-HEALTH COMMAND FIX: Intelligent bot state detection + clear margin display
+Telegram Command Handler - C79 Sniper Bot (v4.0)
 """
 
 import os
@@ -65,7 +62,7 @@ def clean_emoji_for_console(text):
 # Note: Logging will be reconfigured in __init__ with config values
 
 class TelegramCommandHandler:
-    """Handles incoming Telegram commands for XAUUSD Gold bot"""
+    """Handles incoming Telegram commands for C79 Sniper bot"""
     
     def __init__(self, config_file='config.json'):
         """Initialize handler with bot config"""
@@ -271,7 +268,7 @@ class TelegramCommandHandler:
             return self.send_message(f"❌ {error_msg}")
     
     def handle_stop(self):
-        """Handle /stop command - Stop bot gracefully"""
+        """Handle /stop command . Stop bot, keep positions open"""
         try:
             if not self._is_bot_running():
                 return self.send_message(
@@ -531,44 +528,52 @@ class TelegramCommandHandler:
             return 0.0
     
     def _is_within_trading_hours(self):
-        """Check if current time is within trading hours - HEALTH COMMAND FIX"""
+        """Check if current time is within configured trading hours"""
         try:
             now = datetime.now()
             current_day = now.weekday()  # 0=Monday, 6=Sunday
             current_hour = now.hour
-            
-            trading_hours = self.config['TRADING'].get('trading_hours', {})
+
+            # Prefer WATCHDOG.trading_hours, fall back to TRADING.trading_hours
+            trading_hours = (
+                self.config.get('WATCHDOG', {}).get('trading_hours')
+                or self.config.get('TRADING', {}).get('trading_hours', {})
+            )
+
             saturday_closed = trading_hours.get('saturday_closed', True)
             sunday_closed = trading_hours.get('sunday_closed', False)
             monday_open_hour = trading_hours.get('monday_open_hour', 0)
             sunday_open_hour = trading_hours.get('sunday_open_hour', 23)
             friday_close_hour = trading_hours.get('friday_close_hour', 23)
-            
-            # Saturday - closed
+
+            # Saturday . closed
             if current_day == 5 and saturday_closed:
                 return False
-                
+
             # Sunday check
             if current_day == 6:
                 if sunday_closed:
-                    return False  # Sunday closed - no trading
+                    # Sunday closed . no trading
+                    return False
                 else:
-                    return current_hour >= sunday_open_hour  # Sunday trading enabled
-                    
-            # Monday check (only if Sunday closed and monday_open_hour set)
+                    # Sunday trading enabled from configured hour
+                    return current_hour >= sunday_open_hour
+
+            # Monday check . only if Sunday was closed and a Monday open hour is set
             if current_day == 0 and sunday_closed and monday_open_hour > 0:
                 return current_hour >= monday_open_hour
-                
-            # Friday - closes at specified hour
+
+            # Friday . closes at specified hour
             if current_day == 4:
                 return current_hour < friday_close_hour
-                
-            # Monday-Thursday - always open (unless Monday before opening hour)
+
+            # Monday to Thursday . always open, unless restricted by Monday rule above
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Error checking trading hours: {e}")
-            return True  # Default to open on error
+            # Fail safe . treat hours as open so health does not incorrectly report outside hours
+            return True
     
     def _close_all_positions(self) -> int:
         """Close all open positions before stopping bot"""
@@ -746,7 +751,7 @@ class TelegramCommandHandler:
                 hours = int(duration.total_seconds() / 3600)
                 minutes = int((duration.total_seconds() % 3600) / 60)
                 
-                message += f"""<b>XAUUSD</b> - {pos_type}
+                message += f"""<b>{self.symbol}</b> - {pos_type}
 💹 Entry: {pos.price_open:.2f}
 📍 Current: {pos.price_current:.2f}
 💰 P/L: £{pos.profit:.2f}
@@ -1072,7 +1077,7 @@ Trail: {exit_reasons.get('trailing', 0)} | BE: {exit_reasons.get('breakeven', 0)
 
 <b>Bot Control:</b>
 /start - Launch bot remotely
-/stop - Stop bot and close positions
+/stop - Stop bot ony, keep positions
 
 <b>System Monitoring:</b>
 /status - Current status & positions
@@ -1087,7 +1092,7 @@ Trail: {exit_reasons.get('trailing', 0)} | BE: {exit_reasons.get('breakeven', 0)
 <b>Help:</b>
 /help - Show this message
 
-💰 XAUUSD Gold Specialist
+💰 XAUUSD Sniper Specialist
 🎯 Config-Driven | All settings adjustable"""
 
         return self.send_message(message)
